@@ -1,0 +1,8 @@
+ftp:
+  host: 'YOUR FTP HOSTNAME'
+  username: 'YOUR FTP USERNAME'
+  password: 'YOUR FTP PASSWORD'
+  home: 'path/to/dir'
+
+watch:
+  dir: 'DIR PATH TO WATCH'

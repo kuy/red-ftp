@@ -1,0 +1,52 @@
+#!/usr/bin/env ruby
+
+require 'yaml'
+require 'fssm'
+require 'net/ftp'
+
+path = File.expand_path '../../config.yml', __FILE__
+unless File.exists? path
+  puts "ERROR: 'config.yml' is required to run"
+  exit 1
+end
+
+config = YAML.load_file path
+
+Net::FTP.open(config['ftp']['host']) do |ftp|
+  puts 'FTP: Connecting...'
+  ftp.login config['ftp']['username'], config['ftp']['password']
+
+  puts 'FTP: Logged-in'
+  ftp.passive = true
+  ftp.chdir config['ftp']['home']
+
+  ignored = Proc.new do |path|
+    path.start_with? '.'
+  end
+
+  updated = Proc.new do |base, path|
+    return if ignored.call path
+    ftp.put "#{base}/#{path}", path
+    puts "FTP: updated #{base}/#{path}"
+  end
+
+  deleted = Proc.new do |path|
+    return if ignored.call path
+    ftp.delete path
+    puts "FTP: deleted #{path}"
+  end
+
+  created = Proc.new do |base, path|
+    return if ignored.call path
+    ftp.put "#{base}/#{path}", path
+    puts "FTP: created #{base}/#{path}"
+  end
+
+  puts 'FSSM: Start monitoring'
+
+  FSSM.monitor(config['watch']['dir'], '**/*') do
+    update {|base, path| updated.call base, path}
+    delete {|base, path| deleted.call path}
+    create {|base, path| created.call base, path}
+  end
+end
